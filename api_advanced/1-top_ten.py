@@ -1,30 +1,44 @@
 #!/usr/bin/python3
-""" Queries the Reddit API and prints the titles of the first 10 hot posts """
+"""Script that fetch all hot post for a given subreddit with recursive call."""
 
 import requests
 
+headers = {'User-Agent': 'MyAPI/0.0.1'}
 
-def top_ten(subreddit):
-    """Prints the titles of the first 10 hot posts for a given subreddit"""
-    url = f'https://www.reddit.com/r/{subreddit}/hot.json'
-    headers = {'User-Agent': 'python:subreddit.top.ten:v1.0 (by /u/yourusername)'}
-    params = {'limit': 10}
 
-    try:
-        response = requests.get(url, headers=headers, params=params, allow_redirects=False)
-        if response.status_code != 200:
-            print(None)
-            return
+def recurse(subreddit, after="", hot_list=[], page_counter=0):
+    """Return all hot posts in a subreddit."""
 
-        data = response.json()
-        posts = data.get('data', {}).get('children', [])
+    subreddit_url = "https://reddit.com/r/{}/hot.json".format(subreddit)
 
-        if not posts:
-            print(None)
-            return
+    parameters = {'limit': 100, 'after': after}
+    response = requests.get(subreddit_url, headers=headers, params=parameters)
 
-        for post in posts:
-            print(post.get('data', {}).get('title'))
+    if response.status_code == 200:
+        json_data = response.json()
+        # get the 'after' value from the response to pass it on the request
 
-    except Exception:
-        print(None)
+        # get title and append it to the hot_list
+        for child in json_data.get('data').get('children'):
+            title = child.get('data').get('title')
+            hot_list.append(title)
+
+        # variable after indicates if there is data on the next pagination
+        # on the reddit API after holds a unique name for that subreddit page.
+        # if it is None it indicates it is the last page.
+        after = json_data.get('data').get('after')
+        if after is not None:
+
+            page_counter += 1
+            # print(len(hot_list))
+            return recurse(subreddit, after=after,
+                           hot_list=hot_list, page_counter=page_counter)
+        else:
+            return hot_list
+
+    else:
+        return None
+
+
+if __name__ == '__main__':
+    print(recurse("zerowastecz"))
